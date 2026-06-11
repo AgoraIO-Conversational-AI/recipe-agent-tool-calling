@@ -107,58 +107,60 @@ class ChatCompletionRequest(BaseModel):
 
 
 # =============================================================================
-# Mock Response Logic
+# Tool logic (mock, zero-key) — internal orchestration
+# -----------------------------------------------------------------------------
+# Tool execution happens HERE, inside the endpoint. The endpoint decides whether
+# to call log_message, runs it, and streams only the final answer. Agora cloud
+# never sees a tool_call. A real endpoint would run the OpenAI tool-call loop
+# against your model instead of this keyword heuristic.
 # =============================================================================
-# Replace this section with your actual LLM logic:
-# - Call a local model (Ollama, vLLM, etc.)
-# - Call a remote API
-# - Implement RAG retrieval + generation
-# - Add business logic, filtering, routing
-# =============================================================================
 
-MOCK_RESPONSES = [
-    "I'm a custom LLM running on your own server! This response is coming through Agora's Conversational AI pipeline, from your custom endpoint, through TTS, and into your ears as speech.",
-    "This is a mock response demonstrating the custom LLM integration. In production, you'd replace this with calls to your own model or any LLM provider.",
-    "Hello! I'm responding from your custom LLM server. The full pipeline is working: your speech was transcribed by STT, sent to me, and my response will be converted to speech by TTS.",
-    "Great question! I'm a mock LLM server that demonstrates how to build a custom endpoint compatible with Agora's Conversational AI Engine. You can replace me with any logic you want.",
-]
+MESSAGE_LOG: List[str] = []
 
-_response_counter = 0
+_LOG_TRIGGERS = ("log", "print", "note", "record", "console")
 
 
-def get_mock_response(messages: list) -> str:
-    """
-    Generate a mock response based on the conversation.
+def log_message(text: str) -> str:
+    """Tool: record a message server-side and return a confirmation."""
+    MESSAGE_LOG.append(text)
+    logger.info("TOOL log_message recorded: %s", text)
+    return f'Logged your message: "{text}".'
 
-    In a real implementation, this is where you'd:
-    - Extract the user's latest message
-    - Query your knowledge base / vector DB
-    - Call your own model
-    - Apply business logic
-    """
-    global _response_counter
 
-    # Extract the last user message for logging
-    last_user_msg = ""
+def _extract_last_user_text(messages: list) -> str:
     for msg in reversed(messages):
-        if hasattr(msg, "role") and msg.role == "user":
+        if getattr(msg, "role", None) == "user":
             content = msg.content
             if isinstance(content, str):
-                last_user_msg = content
-            elif isinstance(content, list) and len(content) > 0:
+                return content
+            if isinstance(content, list) and content:
                 first = content[0]
                 if isinstance(first, dict):
-                    last_user_msg = first.get("text", "")
-                elif hasattr(first, "text"):
-                    last_user_msg = first.text
-            break
+                    return first.get("text", "")
+                if hasattr(first, "text"):
+                    return first.text
+            return ""
+    return ""
 
-    logger.info(f"User said: {last_user_msg}")
 
-    # Cycle through mock responses
-    response = MOCK_RESPONSES[_response_counter % len(MOCK_RESPONSES)]
-    _response_counter += 1
-    return response
+def _message_to_log(user_text: str) -> str:
+    if ":" in user_text:
+        tail = user_text.split(":", 1)[1].strip()
+        if tail:
+            return tail
+    return user_text.strip()
+
+
+def run_agent_turn(messages: list) -> str:
+    """Decide whether to call log_message, run it, and return the final text."""
+    user_text = _extract_last_user_text(messages)
+    if any(trigger in user_text.lower() for trigger in _LOG_TRIGGERS):
+        confirmation = log_message(_message_to_log(user_text))
+        return f"{confirmation} Anything else you'd like me to note?"
+    return (
+        "I'm a voice assistant that can log messages for you. Say something like "
+        "'log this: buy milk' and I'll record it."
+    )
 
 
 # =============================================================================
@@ -232,8 +234,8 @@ async def chat_completions(
             detail="Only streaming mode is supported. Set stream=true.",
         )
 
-    # Generate mock response
-    response_text = get_mock_response(request.messages)
+    # Run the agent turn (internal tool loop)
+    response_text = run_agent_turn(request.messages)
     chunk_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
     model = request.model or "mock-model"
 
