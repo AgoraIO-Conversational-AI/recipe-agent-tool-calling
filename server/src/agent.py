@@ -1,5 +1,5 @@
 """
-Agent — Custom LLM Recipe
+Agent — Tool Calling Recipe
 
 High-level API for managing Agora Conversational AI Agents with a Custom LLM.
 

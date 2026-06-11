@@ -1,5 +1,5 @@
 """
-Custom LLM Server — Mock Implementation
+Tool-Calling LLM Server — Mock Implementation
 
 This server demonstrates how to implement an OpenAI-compatible Chat Completions
 endpoint that works with Agora Conversational AI Engine.
@@ -46,10 +46,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Custom LLM Server (Mock)",
+    title="Tool-Calling LLM Server (Mock)",
     description=(
         "OpenAI-compatible Chat Completions endpoint for Agora Conversational AI Engine. "
-        "This mock implementation demonstrates the required interface contract."
+        "This mock implementation demonstrates tool calling via an internal log_message tool."
     ),
     version="1.0.0",
 )
@@ -266,7 +266,7 @@ async def health():
 
 if __name__ == "__main__":
     port = int(os.getenv("CUSTOM_LLM_PORT", "8001"))
-    logger.info(f"Starting Custom LLM Server (Mock) on port {port}")
+    logger.info(f"Starting Tool-Calling LLM Server (Mock) on port {port}")
     logger.info("This server returns mock responses — no LLM API key needed.")
     logger.info(f"Endpoint: http://0.0.0.0:{port}/chat/completions")
     uvicorn.run(app, host="0.0.0.0", port=port)

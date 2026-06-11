@@ -1,7 +1,7 @@
-# Agora Agent Backend — Custom LLM Recipe
+# Agora Agent Backend — Tool Calling Recipe
 
 FastAPI service that owns Agora token generation and agent session lifecycle for
-the custom-llm recipe. It is the service the web client reaches through the
+the tool-calling recipe. It is the service the web client reaches through the
 Next.js `/api/*` rewrite proxy (port 8000).
 
 ## What's different from the base quickstart
@@ -34,7 +34,7 @@ python src/server.py
 - `CUSTOM_LLM_API_KEY` — forwarded by Agora cloud as `Authorization: Bearer`.
   Required by the `CustomLLM` vendor.
 
-Optional: `CUSTOM_LLM_MODEL` (default `mock-model`), `AGENT_GREETING`, `PORT`
+Optional: `CUSTOM_LLM_MODEL` (default `tool-mock`), `AGENT_GREETING`, `PORT`
 (default `8000`).
 
 ## API
