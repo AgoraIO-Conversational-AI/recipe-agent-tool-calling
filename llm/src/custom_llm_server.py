@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import sqlite3
 import time
 import uuid
 from typing import Dict, List, Optional, Union
@@ -107,24 +108,64 @@ class ChatCompletionRequest(BaseModel):
 
 
 # =============================================================================
-# Tool logic (mock, zero-key) — internal orchestration
+# Tool logic (mock, zero-key) — internal orchestration over SQLite
 # -----------------------------------------------------------------------------
-# Tool execution happens HERE, inside the endpoint. The endpoint decides whether
-# to call log_message, runs it, and streams only the final answer. Agora cloud
-# never sees a tool_call. A real endpoint would run the OpenAI tool-call loop
-# against your model instead of this keyword heuristic.
+# Two tools execute HERE, inside the endpoint, which owns a SQLite message log:
+#   log_message(conn, text)  — persist a note
+#   list_messages(conn)      — read recent notes back
+# run_agent_turn() routes by keyword and streams only the final answer; Agora
+# cloud never sees a tool_call. A real endpoint would run the OpenAI tool-call
+# loop against your model instead of this heuristic.
 # =============================================================================
 
-MESSAGE_LOG: List[str] = []
+DB_PATH = os.getenv("MESSAGE_DB_PATH") or os.path.join(_base_dir, "messages.db")
 
 _LOG_TRIGGERS = ("log", "print", "note", "record", "console")
+# Recall is checked BEFORE logging so "what have I noted" reads back instead of
+# logging a new note. Keep these phrases distinct from everyday note text; this
+# is a keyword mock, so an utterance that mixes both (e.g. logging the word
+# "list") may route to recall — a real model would decide.
+_RECALL_TRIGGERS = (
+    "list", "read back", "remind me", "what have i", "what i have",
+    "what did i", "show me my", "my notes",
+)
 
 
-def log_message(text: str) -> str:
-    """Tool: record a message server-side and return a confirmation."""
-    MESSAGE_LOG.append(text)
+def get_db(path: str = DB_PATH) -> "sqlite3.Connection":
+    # check_same_thread=False: a fresh connection is created and used per request;
+    # this keeps it safe if the sync DB work is ever moved to a threadpool.
+    conn = sqlite3.connect(path, check_same_thread=False)
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL,
+            created_at REAL NOT NULL
+        )"""
+    )
+    conn.commit()
+    return conn
+
+
+def log_message(conn: "sqlite3.Connection", text: str) -> str:
+    """Tool: persist a message and return a confirmation."""
+    conn.execute(
+        "INSERT INTO messages (text, created_at) VALUES (?, ?)", (text, time.time())
+    )
+    conn.commit()
     logger.info("TOOL log_message recorded: %s", text)
     return f'Logged your message: "{text}".'
+
+
+def list_messages(conn: "sqlite3.Connection") -> str:
+    """Tool: read back the most recent logged messages."""
+    rows = conn.execute(
+        "SELECT text FROM messages ORDER BY created_at DESC, id DESC LIMIT 10"
+    ).fetchall()
+    if not rows:
+        return "You haven't logged any messages yet."
+    items = "; ".join(row[0] for row in rows)
+    plural = "s" if len(rows) != 1 else ""
+    return f"You have {len(rows)} logged message{plural}: {items}."
 
 
 def _extract_last_user_text(messages: list) -> str:
@@ -151,15 +192,18 @@ def _message_to_log(user_text: str) -> str:
     return user_text.strip()
 
 
-def run_agent_turn(messages: list) -> str:
-    """Decide whether to call log_message, run it, and return the final text."""
+def run_agent_turn(conn: "sqlite3.Connection", messages: list) -> str:
+    """Route the turn to a tool (recall or log) and return the final text."""
     user_text = _extract_last_user_text(messages)
-    if any(trigger in user_text.lower() for trigger in _LOG_TRIGGERS):
-        confirmation = log_message(_message_to_log(user_text))
+    lowered = user_text.lower()
+    if any(trigger in lowered for trigger in _RECALL_TRIGGERS):
+        return list_messages(conn)
+    if any(trigger in lowered for trigger in _LOG_TRIGGERS):
+        confirmation = log_message(conn, _message_to_log(user_text))
         return f"{confirmation} Anything else you'd like me to note?"
     return (
-        "I'm a voice assistant that can log messages for you. Say something like "
-        "'log this: buy milk' and I'll record it."
+        "I'm a voice assistant that can log messages and read them back. Say "
+        "'log this: buy milk' to save one, or 'list my notes' to hear them."
     )
 
 
@@ -234,8 +278,14 @@ async def chat_completions(
             detail="Only streaming mode is supported. Set stream=true.",
         )
 
-    # Run the agent turn (internal tool loop)
-    response_text = run_agent_turn(request.messages)
+    # Run the agent turn (internal tool loop). The tool's DB work fully
+    # materializes the reply string before we close the connection, so the
+    # streaming generator below never touches the DB.
+    conn = get_db()
+    try:
+        response_text = run_agent_turn(conn, request.messages)
+    finally:
+        conn.close()
     chunk_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
     model = request.model or "mock-model"
 

@@ -31,10 +31,13 @@ Agora ConvoAI Cloud → MiniMax TTS (managed) → user hears speech
 
 ## Where the tool runs
 
-In this recipe the tool call is handled entirely inside the `llm/` endpoint.
-`run_agent_turn()` detects the user's intent, executes `log_message()` internally,
-and streams back only the final spoken confirmation. Agora cloud never sees a
-`tool_call` chunk — the tool loop is invisible to the cloud layer.
+In this recipe the tool calls are handled entirely inside the `llm/` endpoint,
+which owns a small SQLite message log. `run_agent_turn()` detects the user's
+intent and executes one of two tools internally — `log_message()` to persist a
+note, or `list_messages()` to read recent notes back (recall is checked before
+logging, so "what have I noted" reads back instead of saving). Only the final
+spoken reply is streamed; Agora cloud never sees a `tool_call` chunk. Because the
+notes live in SQLite, they survive an endpoint restart.
 
 This is distinct from an MCP-orchestrated approach, where Agora cloud would invoke
 a separate MCP server to run tools. That pattern is a separate recipe

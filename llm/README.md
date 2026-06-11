@@ -2,8 +2,10 @@
 
 An OpenAI-compatible `POST /chat/completions` server (port 8001) that Agora cloud
 calls during a conversation. This mock demonstrates internal tool execution: it
-detects the user's intent, runs the `log_message` tool inside the endpoint, and
-streams back only the spoken confirmation — all with **no LLM API key**.
+detects the user's intent and runs one of two tools inside the endpoint —
+`log_message` (persist a note to SQLite) or `list_messages` (read notes back) —
+then streams back only the spoken reply, all with **no LLM API key**. Notes
+persist across restarts in a SQLite file (`MESSAGE_DB_PATH`, default `messages.db`).
 
 It has no `agora-agents` dependency — it is a plain FastAPI app, which is exactly
 the boundary you replace with your own model and tool registry.
@@ -47,8 +49,8 @@ This mock does **not** authenticate. A production endpoint should validate the
 
 ## Replace the mock
 
-Edit `run_agent_turn()` / `log_message()` in `src/custom_llm_server.py`. Examples:
-call a local model (Ollama/vLLM), inject RAG context before generating, or route
-models by content. `run_agent_turn()` decides whether to call `log_message()` and
-streams the confirmation; a real endpoint would run the OpenAI tool-call loop
-against your model.
+Edit `run_agent_turn()` / `log_message()` / `list_messages()` in
+`src/custom_llm_server.py`. Examples: call a local model (Ollama/vLLM), inject RAG
+context before generating, or route models by content. `run_agent_turn()` routes
+the turn to a tool (recall is checked before logging) and streams the reply; a
+real endpoint would run the OpenAI tool-call loop against your model.

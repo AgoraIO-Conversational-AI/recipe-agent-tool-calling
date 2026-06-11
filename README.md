@@ -3,11 +3,12 @@
 The **tool-calling** recipe in the Agora Conversational AI recipes family. Bring
 your own LLM endpoint to Agora's voice pipeline and add tool execution to it:
 the agent's LLM stage is pointed at your own OpenAI-compatible
-`POST /chat/completions` endpoint, which internally runs a `log_message` tool
-when the user's intent warrants it and streams back only the final spoken
-confirmation. Agora cloud never sees a `tool_call` — the tool loop is entirely
-inside the `llm/` endpoint. STT (Deepgram nova-3) and TTS (MiniMax) stay
-Agora-managed.
+`POST /chat/completions` endpoint, which internally runs tools — `log_message`
+to save a note and `list_messages` to read your notes back — when the user's
+intent warrants it, and streams back only the final spoken reply. Notes persist
+in a small SQLite database, so they survive restarts. Agora cloud never sees a
+`tool_call` — the tool loop is entirely inside the `llm/` endpoint. STT
+(Deepgram nova-3) and TTS (MiniMax) stay Agora-managed.
 
 This repo ships a **zero-key mock** LLM endpoint so you can run the full
 STT → tool-calling LLM → TTS pipeline immediately, then replace the mock with
@@ -58,7 +59,7 @@ Next.js  ──rewrite──▶  Agent backend  (server/, localhost:8000)
                           ▼
                        Tool-calling LLM endpoint  (llm/, localhost:8001)
                           ▲  public via ngrok tunnel
-                          │  runs log_message internally, streams confirmation
+                          │  runs log_message / list_messages (SQLite), streams reply
 ```
 
 The browser only ever calls Next `/api/*`, which rewrites to the agent backend.
@@ -73,7 +74,7 @@ agent-recipes-python/
 ├── server/   # Agent backend (:8000) — tokens + agent lifecycle, CustomLLM vendor
 │   ├── src/{server.py, agent.py}
 │   └── scripts/run_fake_server.py
-├── llm/      # Tool-calling LLM endpoint (:8001) — OpenAI-compatible mock, internal tool loop
+├── llm/      # Tool-calling LLM endpoint (:8001) — OpenAI-compatible mock, SQLite-backed log/list tools
 │   └── src/custom_llm_server.py
 ├── web/      # Shared Next.js frontend (:3000)
 └── package.json
@@ -93,6 +94,7 @@ Backend env file: [`server/.env.example`](server/.env.example).
 | `AGENT_GREETING` |  | built-in | Optional opening line override |
 | `PORT` |  | `8000` | Agent backend port |
 | `CUSTOM_LLM_PORT` |  | `8001` | Port for the tool-calling LLM endpoint — lives in **`llm/.env.local`**, not `server/`'s |
+| `MESSAGE_DB_PATH` |  | `messages.db` | SQLite file the `llm/` endpoint stores notes in (relative to `llm/`). Optional; lives in **`llm/.env.local`** |
 | `AGENT_BACKEND_URL` (web deploy) | ✅ | — | Required in a deployed `web` app when proxying to the backend |
 
 ## Commands
@@ -111,7 +113,7 @@ bun run clean            # remove venvs and build artifacts
 
 ## Replacing the mock
 
-Edit `run_agent_turn()` / `log_message()` in [`llm/src/custom_llm_server.py`](llm/src/custom_llm_server.py).
+Edit `run_agent_turn()` / `log_message()` / `list_messages()` in [`llm/src/custom_llm_server.py`](llm/src/custom_llm_server.py).
 The endpoint must keep speaking the OpenAI streaming `/chat/completions` contract
 (see [`llm/README.md`](llm/README.md)). A production endpoint should also validate
 the `Authorization: Bearer` header.

@@ -19,9 +19,10 @@ from agora_agent.agentkit.vendors import CustomLLM, DeepgramSTT, MiniMaxTTS
 logger = logging.getLogger("uvicorn.error")
 
 CUSTOM_LLM_PROMPT = """You are a helpful voice assistant connected to Agora's \
-Conversational AI Engine. You can log short messages for the user on request. \
-When the user asks you to log, note, or record something, call the log_message \
-tool with the text, then confirm what you saved. Keep replies to one or two \
+Conversational AI Engine. You can log short messages for the user and read them \
+back. When the user asks you to log, note, or record something, call the \
+log_message tool with the text; when they ask what they've noted or to list \
+their notes, call list_messages. Then confirm. Keep replies to one or two \
 sentences."""
 
 
@@ -44,7 +45,7 @@ class Agent:
         self.app_certificate = os.getenv("AGORA_APP_CERTIFICATE")
         self.greeting = os.getenv(
             "AGENT_GREETING",
-            "Hi! I'm your voice assistant. Ask me to log a quick note any time.",
+            "Hi! I'm your voice assistant — I can log quick notes and read them back. What should I remember?",
         )
 
         # Custom LLM configuration.

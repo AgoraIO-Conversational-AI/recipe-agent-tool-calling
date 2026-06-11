@@ -11,9 +11,10 @@ recipes family, derived from the base `agent-quickstart-python` template.
   agent's LLM stage at the tool-calling LLM endpoint. SDK: `agora-agents>=2.0.0`
   (`import agora_agent`).
 - **`llm/`** — Python FastAPI tool-calling LLM endpoint (:8001). OpenAI-compatible
-  `POST /chat/completions` mock that Agora cloud calls. Internally runs a tool loop:
-  `run_agent_turn()` detects user intent, executes `log_message()`, and streams only
-  the spoken confirmation back. Agora cloud never sees a `tool_call`. No
+  `POST /chat/completions` mock that Agora cloud calls. Internally runs a tool loop
+  over a SQLite message log: `run_agent_turn()` detects user intent and executes
+  `log_message()` (persist a note) or `list_messages()` (read notes back), then
+  streams only the spoken reply. Agora cloud never sees a `tool_call`. No
   `agora-agents` dependency. This is the component a developer replaces.
 - **`web/`** — Next.js 16 / React 19 / TypeScript frontend (:3000), resynced from
   the base quickstart.
@@ -44,8 +45,9 @@ recipes family, derived from the base `agent-quickstart-python` template.
 - `CUSTOM_LLM_URL` is required and must be public; there is no localhost default.
 - Both `CUSTOM_LLM_URL` and `CUSTOM_LLM_API_KEY` are required by the `CustomLLM`
   vendor (the SDK rejects one without the other).
-- The tool loop (`run_agent_turn` + `log_message`) belongs in `llm/`; do not move
-  tool execution into `server/` or expose it as a separate service.
+- The tool loop (`run_agent_turn` + `log_message` + `list_messages`) and its
+  SQLite store belong in `llm/`; do not move tool execution into `server/` or
+  expose it as a separate service.
 
 ## Anti-patterns
 
