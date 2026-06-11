@@ -1,13 +1,17 @@
-# Agora Conversational AI — Custom LLM Recipe (Python)
+# Agora Conversational AI — Tool Calling Recipe (Python)
 
-The **custom-llm** recipe in the Agora Conversational AI recipes family. Bring your
-own LLM to Agora's voice pipeline: the agent's LLM stage is pointed at your own
-OpenAI-compatible `POST /chat/completions` endpoint instead of a managed model.
-STT (Deepgram) and TTS (MiniMax) stay Agora-managed.
+The **tool-calling** recipe in the Agora Conversational AI recipes family. Bring
+your own LLM endpoint to Agora's voice pipeline and add tool execution to it:
+the agent's LLM stage is pointed at your own OpenAI-compatible
+`POST /chat/completions` endpoint, which internally runs a `log_message` tool
+when the user's intent warrants it and streams back only the final spoken
+confirmation. Agora cloud never sees a `tool_call` — the tool loop is entirely
+inside the `llm/` endpoint. STT (Deepgram nova-3) and TTS (MiniMax) stay
+Agora-managed.
 
 This repo ships a **zero-key mock** LLM endpoint so you can run the full
-STT → custom LLM → TTS pipeline immediately, then replace the mock with your own
-model.
+STT → tool-calling LLM → TTS pipeline immediately, then replace the mock with
+your own model and tool registry.
 
 ## Prerequisites
 
@@ -27,7 +31,7 @@ agora login
 agora project use <your-project>          # select which project to use (you may have several)
 agora project env write server/.env.local # writes App ID/Certificate; keeps your CUSTOM_LLM_* lines
 
-# 3. Expose the custom LLM endpoint publicly (Agora cloud calls it directly)
+# 3. Expose the tool-calling LLM endpoint publicly (Agora cloud calls it directly)
 ngrok http 8001
 
 # 4. Add the tunnel URL to server/.env.local (use whatever domain ngrok prints —
@@ -52,12 +56,13 @@ Next.js  ──rewrite──▶  Agent backend  (server/, localhost:8000)
                        Agora ConvoAI Cloud
                           │  POST <CUSTOM_LLM_URL>   (Authorization: Bearer)
                           ▼
-                       Custom LLM endpoint  (llm/, localhost:8001)
+                       Tool-calling LLM endpoint  (llm/, localhost:8001)
                           ▲  public via ngrok tunnel
+                          │  runs log_message internally, streams confirmation
 ```
 
 The browser only ever calls Next `/api/*`, which rewrites to the agent backend.
-The agent backend owns Agora tokens and agent lifecycle. The **custom LLM
+The agent backend owns Agora tokens and agent lifecycle. The **tool-calling LLM
 endpoint** is separate because Agora cloud — not the browser — calls it, so it
 must be publicly reachable. See [ARCHITECTURE.md](./ARCHITECTURE.md).
 
@@ -68,7 +73,7 @@ agent-recipes-python/
 ├── server/   # Agent backend (:8000) — tokens + agent lifecycle, CustomLLM vendor
 │   ├── src/{server.py, agent.py}
 │   └── scripts/run_fake_server.py
-├── llm/      # Custom LLM endpoint (:8001) — OpenAI-compatible mock, no agora deps
+├── llm/      # Tool-calling LLM endpoint (:8001) — OpenAI-compatible mock, internal tool loop
 │   └── src/custom_llm_server.py
 ├── web/      # Shared Next.js frontend (:3000)
 └── package.json
@@ -84,10 +89,10 @@ Backend env file: [`server/.env.example`](server/.env.example).
 | `AGORA_APP_CERTIFICATE` | ✅ | — | Agora Console → Project → App Certificate (server only) |
 | `CUSTOM_LLM_URL` | ✅ | — | **Public** chat-completions URL of your `llm/` endpoint. Agora cloud calls it; cannot be `localhost`. |
 | `CUSTOM_LLM_API_KEY` | ✅ | `any-key-here` | Forwarded by Agora cloud as `Authorization: Bearer`. Required by the `CustomLLM` vendor. |
-| `CUSTOM_LLM_MODEL` |  | `mock-model` | Model name passed to your endpoint |
+| `CUSTOM_LLM_MODEL` |  | `tool-mock` | Model name passed to your endpoint |
 | `AGENT_GREETING` |  | built-in | Optional opening line override |
 | `PORT` |  | `8000` | Agent backend port |
-| `CUSTOM_LLM_PORT` |  | `8001` | Port for the custom LLM endpoint — lives in **`llm/.env.local`**, not `server/`'s |
+| `CUSTOM_LLM_PORT` |  | `8001` | Port for the tool-calling LLM endpoint — lives in **`llm/.env.local`**, not `server/`'s |
 | `AGENT_BACKEND_URL` (web deploy) | ✅ | — | Required in a deployed `web` app when proxying to the backend |
 
 ## Commands
@@ -109,7 +114,8 @@ bun run clean            # remove venvs and build artifacts
 Edit `get_mock_response()` in [`llm/src/custom_llm_server.py`](llm/src/custom_llm_server.py).
 The endpoint must keep speaking the OpenAI streaming `/chat/completions` contract
 (see [`llm/README.md`](llm/README.md)). A production endpoint should also validate
-the `Authorization: Bearer` header.
+the `Authorization: Bearer` header. The tool registry and routing live in
+`run_agent_turn()` / `log_message()` in `llm/src/custom_llm_server.py`.
 
 ## Troubleshooting
 

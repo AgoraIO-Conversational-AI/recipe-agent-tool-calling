@@ -1,11 +1,12 @@
-# Custom LLM Endpoint — Mock
+# Tool-Calling LLM Endpoint — Mock
 
 An OpenAI-compatible `POST /chat/completions` server (port 8001) that Agora cloud
-calls during a conversation. This mock returns canned streaming responses so you
-can exercise the full STT → custom LLM → TTS pipeline with **no LLM API key**.
+calls during a conversation. This mock demonstrates internal tool execution: it
+detects the user's intent, runs the `log_message` tool inside the endpoint, and
+streams back only the spoken confirmation — all with **no LLM API key**.
 
 It has no `agora-agents` dependency — it is a plain FastAPI app, which is exactly
-the boundary you replace with your own model.
+the boundary you replace with your own model and tool registry.
 
 ## The contract
 
@@ -49,3 +50,7 @@ This mock does **not** authenticate. A production endpoint should validate the
 Edit `get_mock_response()` in `src/custom_llm_server.py`. Examples: call a local
 model (Ollama/vLLM), inject RAG context before generating, or route models by
 content.
+
+This mock also demonstrates internal tool execution: `run_agent_turn()` decides
+whether to call `log_message()` and streams the confirmation. A real endpoint
+would run the OpenAI tool-call loop against your model.
