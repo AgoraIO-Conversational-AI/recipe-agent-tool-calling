@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Agora Agent & Token Service — Custom LLM Recipe
+Agora Agent & Token Service — Tool Calling Recipe
 
 HTTP APIs:
 - GET  /get_config     -> Generate connection config
-- POST /startAgent     -> Start agent with Custom LLM
+- POST /startAgent     -> Start agent with tool-calling LLM
 - POST /stopAgent      -> Stop agent
 """
 import logging
@@ -59,9 +59,9 @@ except ValueError as e:
 
 # FastAPI application
 app = FastAPI(
-    title="Agora Custom LLM Recipe Service",
+    title="Agora Tool Calling Recipe Service",
     version="1.0.0",
-    description="Agora Conversational AI with Custom LLM integration",
+    description="Agora Conversational AI with Tool Calling integration",
 )
 
 app.add_middleware(
@@ -91,7 +91,7 @@ class StopAgentRequest(BaseModel):
 
 # API endpoints
 def _generate_channel_name() -> str:
-    return f"custom-llm-{int(time.time())}-{random.randint(1000, 9999)}"
+    return f"tool-calling-{int(time.time())}-{random.randint(1000, 9999)}"
 
 
 @router.get("/get_config")
@@ -142,7 +142,7 @@ async def get_config(
 
 @router.post("/startAgent")
 async def start_agent(request: StartAgentRequest):
-    """Start agent with Custom LLM in a channel"""
+    """Start agent with tool-calling LLM in a channel"""
     if agent is None:
         raise HTTPException(
             status_code=500,
