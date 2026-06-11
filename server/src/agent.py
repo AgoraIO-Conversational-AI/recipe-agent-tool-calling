@@ -18,12 +18,11 @@ from agora_agent.agentkit.vendors import CustomLLM, DeepgramSTT, MiniMaxTTS
 
 logger = logging.getLogger("uvicorn.error")
 
-CUSTOM_LLM_PROMPT = """You are a helpful AI assistant powered by a custom LLM integration \
-with Agora's Conversational AI Engine.
-
-You can answer questions, have conversations, and help users with various tasks. \
-Keep most replies to one or two sentences unless the user explicitly asks for more detail.
-"""
+CUSTOM_LLM_PROMPT = """You are a helpful voice assistant connected to Agora's \
+Conversational AI Engine. You can log short messages for the user on request. \
+When the user asks you to log, note, or record something, call the log_message \
+tool with the text, then confirm what you saved. Keep replies to one or two \
+sentences."""
 
 
 class Agent:
@@ -45,7 +44,7 @@ class Agent:
         self.app_certificate = os.getenv("AGORA_APP_CERTIFICATE")
         self.greeting = os.getenv(
             "AGENT_GREETING",
-            "Hi there! I'm your AI assistant powered by a custom LLM. How can I help?",
+            "Hi! I'm your voice assistant. Ask me to log a quick note any time.",
         )
 
         # Custom LLM configuration.
@@ -56,7 +55,7 @@ class Agent:
         # agent "start" while its LLM calls silently fail cloud-side.
         self.custom_llm_url = os.getenv("CUSTOM_LLM_URL")
         self.custom_llm_api_key = os.getenv("CUSTOM_LLM_API_KEY", "any-key-here")
-        self.custom_llm_model = os.getenv("CUSTOM_LLM_MODEL", "mock-model")
+        self.custom_llm_model = os.getenv("CUSTOM_LLM_MODEL", "tool-mock")
 
         if not self.app_id or not self.app_certificate:
             raise ValueError("AGORA_APP_ID and AGORA_APP_CERTIFICATE are required")
