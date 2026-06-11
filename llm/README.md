@@ -47,10 +47,8 @@ This mock does **not** authenticate. A production endpoint should validate the
 
 ## Replace the mock
 
-Edit `get_mock_response()` in `src/custom_llm_server.py`. Examples: call a local
-model (Ollama/vLLM), inject RAG context before generating, or route models by
-content.
-
-This mock also demonstrates internal tool execution: `run_agent_turn()` decides
-whether to call `log_message()` and streams the confirmation. A real endpoint
-would run the OpenAI tool-call loop against your model.
+Edit `run_agent_turn()` / `log_message()` in `src/custom_llm_server.py`. Examples:
+call a local model (Ollama/vLLM), inject RAG context before generating, or route
+models by content. `run_agent_turn()` decides whether to call `log_message()` and
+streams the confirmation; a real endpoint would run the OpenAI tool-call loop
+against your model.

@@ -111,11 +111,10 @@ bun run clean            # remove venvs and build artifacts
 
 ## Replacing the mock
 
-Edit `get_mock_response()` in [`llm/src/custom_llm_server.py`](llm/src/custom_llm_server.py).
+Edit `run_agent_turn()` / `log_message()` in [`llm/src/custom_llm_server.py`](llm/src/custom_llm_server.py).
 The endpoint must keep speaking the OpenAI streaming `/chat/completions` contract
 (see [`llm/README.md`](llm/README.md)). A production endpoint should also validate
-the `Authorization: Bearer` header. The tool registry and routing live in
-`run_agent_turn()` / `log_message()` in `llm/src/custom_llm_server.py`.
+the `Authorization: Bearer` header.
 
 ## Troubleshooting
 

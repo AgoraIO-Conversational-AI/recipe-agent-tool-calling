@@ -24,3 +24,9 @@ def test_non_tool_message_returns_guidance():
     reply = srv.run_agent_turn([_user("hello there")])
     assert srv.MESSAGE_LOG == []
     assert "log" in reply.lower()
+
+
+def test_log_message_without_colon_logs_full_text():
+    reply = srv.run_agent_turn([_user("please log groceries")])
+    assert "please log groceries" in srv.MESSAGE_LOG
+    assert "please log groceries" in reply
