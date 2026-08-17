@@ -87,6 +87,7 @@ async function main() {
     cwd: serverRoot,
     env: {
       ...process.env,
+      MESSAGE_DB_PATH: ':memory:',
       PORT: String(port),
     },
     stdout: 'ignore',
