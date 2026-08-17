@@ -25,6 +25,10 @@ your own model and tool registry.
 - [Agora CLI](https://github.com/AgoraIO/cli) — makes generating an App ID + App Certificate easy
 - [ngrok](https://ngrok.com/) — the backend must be publicly reachable so Agora cloud can call `/llm`
 
+The same commands work on macOS, Linux, and Windows. On macOS/Linux, setup uses
+`python3`; on Windows, it uses the Python launcher (`py`) or `python`. WSL and
+virtualenv activation are not required.
+
 ## Run It
 
 ```bash
@@ -94,7 +98,7 @@ Backend env file: [`server/.env.example`](server/.env.example).
 | `CUSTOM_LLM_MODEL` |  | `tool-mock` | Model name passed to your endpoint |
 | `AGENT_GREETING` |  | built-in | Optional opening line override |
 | `PORT` |  | `8000` | Agent backend port |
-| `MESSAGE_DB_PATH` |  | `messages.db` | SQLite file the tool loop stores notes in. Optional; defaults relative to `llm/` legacy path. Set to `/tmp/messages.db` in Docker. |
+| `MESSAGE_DB_PATH` |  | `messages.db` | SQLite file the tool loop stores notes in. Relative paths resolve from `server/`; Docker uses `/tmp/messages.db`. |
 | `AGENT_BACKEND_URL` (web deploy) | ✅ | — | Required in a deployed `web` app when proxying to the backend |
 
 ## Commands
