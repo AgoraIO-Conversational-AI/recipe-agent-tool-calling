@@ -98,7 +98,7 @@ Backend env file: [`server/.env.example`](server/.env.example).
 | `CUSTOM_LLM_MODEL` |  | `tool-mock` | Model name passed to your endpoint |
 | `AGENT_GREETING` |  | built-in | Optional opening line override |
 | `PORT` |  | `8000` | Agent backend port |
-| `MESSAGE_DB_PATH` |  | `messages.db` | SQLite file the tool loop stores notes in. Optional; defaults relative to `llm/` legacy path. Set to `/tmp/messages.db` in Docker. |
+| `MESSAGE_DB_PATH` |  | `messages.db` | SQLite file the tool loop stores notes in. Relative paths resolve from `server/`; Docker uses `/tmp/messages.db`. |
 | `AGENT_BACKEND_URL` (web deploy) | ✅ | — | Required in a deployed `web` app when proxying to the backend |
 
 ## Commands
